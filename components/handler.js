@@ -501,7 +501,7 @@ class Handler {
 
       if (!fs.existsSync(path.join(jarPath, name))) await downloadLibrary(library)
       if (library.downloads && library.downloads.artifact) {
-        if (!this.checkSum(library.downloads.artifact.sha1, path.join(jarPath, name))) await downloadLibrary(library)
+        if (!await this.checkSum(library.downloads.artifact.sha1, path.join(jarPath, name))) await downloadLibrary(library)
       }
 
       counter++
