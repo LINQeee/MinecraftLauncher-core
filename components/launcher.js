@@ -54,7 +54,7 @@ class MCLCore extends EventEmitter {
 
       const versionFile = await this.handler.getVersion()
       const mcPath = this.options.overrides.minecraftJar || (this.options.version.custom
-        ? path.join(this.options.root, 'versions', this.options.version.custom, `${this.options.version.custom}.jar`)
+        ? path.join(this.options.overrides.directory || path.join(this.options.root, 'versions', this.options.version.custom), `${this.options.version.custom}.jar`)
         : path.join(directory, `${this.options.version.number}.jar`))
       this.options.mcPath = mcPath
       const nativePath = await this.handler.getNatives()
