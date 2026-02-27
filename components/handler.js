@@ -265,7 +265,7 @@ class Handler {
       const natives = async () => {
         const natives = []
         await Promise.all(this.version.libraries.map(async (lib) => {
-          if (!lib.downloads || !lib.downloads.classifiers) return
+          if (!lib.downloads?.classifiers) return
           if (this.parseRule(lib)) return
 
           const native = this.getOS() === 'osx'
@@ -537,7 +537,7 @@ class Handler {
 
     const parsed = this.version.libraries.filter(lib => {
       if (lib.downloads && lib.downloads.artifact && !this.parseRule(lib)) {
-        if (!classJson || !classJson.libraries.some(l => l.name.split(':')[1] === lib.name.split(':')[1])) {
+        if (!classJson?.libraries.some(l => l.name.split(':')[1] === lib.name.split(':')[1])) {
           return true
         }
       }

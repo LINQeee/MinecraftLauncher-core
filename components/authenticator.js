@@ -36,7 +36,7 @@ module.exports.getAuth = async (username, password, client_token = null) => {
     requestUser: true
   })
 
-  if (!data || !data.selectedProfile) { throw new Error('Validation error: ' + statusCode) }
+  if (!data?.selectedProfile) { throw new Error('Validation error: ' + statusCode) }
 
   return {
     access_token: data.accessToken,
@@ -61,7 +61,7 @@ module.exports.refreshAuth = async (accessToken, clientToken) => {
     requestUser: true
   })
 
-  if (!data || !data.selectedProfile) { throw new Error('Validation error: ' + statusCode) }
+  if (!data?.selectedProfile) { throw new Error('Validation error: ' + statusCode) }
 
   return {
     access_token: data.accessToken,
