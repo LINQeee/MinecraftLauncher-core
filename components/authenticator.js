@@ -1,168 +1,101 @@
-const request = require('request')
+const { request } = require('undici')
 const { v3 } = require('uuid')
 
 let uuid
 let api_url = 'https://authserver.mojang.com'
 
-module.exports.getAuth = function (username, password, client_token = null) {
-  return new Promise((resolve, reject) => {
-    getUUID(username)
-    if (!password) {
-      const user = {
-        access_token: uuid,
-        client_token: client_token || uuid,
-        uuid,
-        name: username,
-        user_properties: '{}'
-      }
-
-      return resolve(user)
-    }
-
-    const requestObject = {
-      url: api_url + '/authenticate',
-      json: {
-        agent: {
-          name: 'Minecraft',
-          version: 1
-        },
-        username,
-        password,
-        clientToken: uuid,
-        requestUser: true
-      }
-    }
-
-    request.post(requestObject, function (error, response, body) {
-      if (error) return reject(error)
-      if (!body || !body.selectedProfile) {
-        return reject(new Error('Validation error: ' + response.statusMessage))
-      }
-
-      const userProfile = {
-        access_token: body.accessToken,
-        client_token: body.clientToken,
-        uuid: body.selectedProfile.id,
-        name: body.selectedProfile.name,
-        selected_profile: body.selectedProfile,
-        user_properties: parsePropts(body.user.properties)
-      }
-
-      resolve(userProfile)
-    })
+const post = async (path, body) => {
+  const { statusCode, body: resBody } = await request(api_url + path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body)
   })
+
+  const data = await resBody.json().catch(() => null)
+  return { statusCode, data }
 }
 
-module.exports.validate = function (accessToken, clientToken) {
-  return new Promise((resolve, reject) => {
-    const requestObject = {
-      url: api_url + '/validate',
-      json: {
-        accessToken,
-        clientToken
-      }
+module.exports.getAuth = async (username, password, client_token = null) => {
+  getUUID(username)
+
+  if (!password) {
+    return {
+      access_token: uuid,
+      client_token: client_token || uuid,
+      uuid,
+      name: username,
+      user_properties: '{}'
     }
+  }
 
-    request.post(requestObject, async function (error, response, body) {
-      if (error) return reject(error)
-
-      if (!body) resolve(true)
-      else reject(body)
-    })
+  const { data, statusCode } = await post('/authenticate', {
+    agent: { name: 'Minecraft', version: 1 },
+    username,
+    password,
+    clientToken: uuid,
+    requestUser: true
   })
+
+  if (!data || !data.selectedProfile) { throw new Error('Validation error: ' + statusCode) }
+
+  return {
+    access_token: data.accessToken,
+    client_token: data.clientToken,
+    uuid: data.selectedProfile.id,
+    name: data.selectedProfile.name,
+    selected_profile: data.selectedProfile,
+    user_properties: parsePropts(data.user.properties)
+  }
 }
 
-module.exports.refreshAuth = function (accessToken, clientToken) {
-  return new Promise((resolve, reject) => {
-    const requestObject = {
-      url: api_url + '/refresh',
-      json: {
-        accessToken,
-        clientToken,
-        requestUser: true
-      }
-    }
-
-    request.post(requestObject, function (error, response, body) {
-      if (error) return reject(error)
-      if (!body || !body.selectedProfile) {
-        return reject(new Error('Validation error: ' + response.statusMessage))
-      }
-
-      const userProfile = {
-        access_token: body.accessToken,
-        client_token: getUUID(body.selectedProfile.name),
-        uuid: body.selectedProfile.id,
-        name: body.selectedProfile.name,
-        user_properties: parsePropts(body.user.properties)
-      }
-
-      return resolve(userProfile)
-    })
-  })
+module.exports.validate = async (accessToken, clientToken) => {
+  const { data } = await post('/validate', { accessToken, clientToken })
+  if (!data) return true
+  throw data
 }
 
-module.exports.invalidate = function (accessToken, clientToken) {
-  return new Promise((resolve, reject) => {
-    const requestObject = {
-      url: api_url + '/invalidate',
-      json: {
-        accessToken,
-        clientToken
-      }
-    }
-
-    request.post(requestObject, function (error, response, body) {
-      if (error) return reject(error)
-
-      if (!body) return resolve(true)
-      else return reject(body)
-    })
+module.exports.refreshAuth = async (accessToken, clientToken) => {
+  const { data, statusCode } = await post('/refresh', {
+    accessToken,
+    clientToken,
+    requestUser: true
   })
+
+  if (!data || !data.selectedProfile) { throw new Error('Validation error: ' + statusCode) }
+
+  return {
+    access_token: data.accessToken,
+    client_token: getUUID(data.selectedProfile.name),
+    uuid: data.selectedProfile.id,
+    name: data.selectedProfile.name,
+    user_properties: parsePropts(data.user.properties)
+  }
 }
 
-module.exports.signOut = function (username, password) {
-  return new Promise((resolve, reject) => {
-    const requestObject = {
-      url: api_url + '/signout',
-      json: {
-        username,
-        password
-      }
-    }
-
-    request.post(requestObject, function (error, response, body) {
-      if (error) return reject(error)
-
-      if (!body) return resolve(true)
-      else return reject(body)
-    })
-  })
+module.exports.invalidate = async (accessToken, clientToken) => {
+  const { data } = await post('/invalidate', { accessToken, clientToken })
+  if (!data) return true
+  throw data
 }
 
-module.exports.changeApiUrl = function (url) {
+module.exports.signOut = async (username, password) => {
+  const { data } = await post('/signout', { username, password })
+  if (!data) return true
+  throw data
+}
+
+module.exports.changeApiUrl = url => {
   api_url = url
 }
 
-function parsePropts (array) {
-  if (array) {
-    const newObj = {}
-    for (const entry of array) {
-      if (newObj[entry.name]) {
-        newObj[entry.name].push(entry.value)
-      } else {
-        newObj[entry.name] = [entry.value]
-      }
-    }
-    return JSON.stringify(newObj)
-  } else {
-    return '{}'
-  }
+const parsePropts = array => {
+  if (!array) return '{}'
+  const obj = {}
+  for (const { name, value } of array) { obj[name] = obj[name] ? [...obj[name], value] : [value] }
+  return JSON.stringify(obj)
 }
 
-function getUUID (value) {
-  if (!uuid) {
-    uuid = v3(value, v3.DNS)
-  }
+const getUUID = value => {
+  if (!uuid) uuid = v3(value, v3.DNS)
   return uuid
 }
