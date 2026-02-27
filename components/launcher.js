@@ -68,14 +68,16 @@ class MCLCore extends EventEmitter {
 
       const args = []
 
+      const ramSettings = this.handler.getMemory()
+
       let jvm = [
         '-XX:-UseAdaptiveSizePolicy',
         '-XX:-OmitStackTraceInFastThrow',
         '-Dfml.ignorePatchDiscrepancies=true',
         '-Dfml.ignoreInvalidMinecraftCertificates=true',
         `-Djava.library.path=${nativePath}`,
-        `-Xmx${this.handler.getMemory()[0]}`,
-        `-Xms${this.handler.getMemory()[1]}`
+        `-Xmx${ramSettings.max}`,
+        `-Xms${ramSettings.min}`
       ]
       if (this.handler.getOS() === 'osx') {
         if (parseInt(versionFile.id.split('.')[1]) > 12) jvm.push(await this.handler.getJVM())

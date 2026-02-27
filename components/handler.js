@@ -706,23 +706,29 @@ class Handler {
     }
   }
 
-  // To prevent launchers from breaking when they update. Will be reworked with rewrite.
   getMemory () {
+    const DEFAULT = { min: 512, max: 1024 }
+
     if (!this.options.memory) {
-      this.client.emit('debug', '[MCLC]: Memory not set! Setting 1GB as MAX!')
-      this.options.memory = {
-        min: 512,
-        max: 1023
-      }
+      this.client.emit('debug', '[MCLC]: Memory not set! Using defaults')
+      this.options.memory = DEFAULT
     }
-    if (!isNaN(this.options.memory.max) && !isNaN(this.options.memory.min)) {
-      if (this.options.memory.max < this.options.memory.min) {
-        this.client.emit('debug', '[MCLC]: MIN memory is higher then MAX! Resetting!')
-        this.options.memory.max = 1023
-        this.options.memory.min = 512
-      }
-      return [`${this.options.memory.max}M`, `${this.options.memory.min}M`]
-    } else { return [`${this.options.memory.max}`, `${this.options.memory.min}`] }
+
+    let min = Number(this.options.memory.min)
+    let max = Number(this.options.memory.max)
+
+    if (isNaN(min) || isNaN(max)) {
+      this.client.emit('debug', '[MCLC]: Invalid memory format, use numbers! Using defaults')
+      min = DEFAULT.min
+      max = DEFAULT.max
+    }
+
+    if (min > max) {
+      this.client.emit('debug', '[MCLC]: MIN > MAX! Swapping values')
+      ;[min, max] = [max, min]
+    }
+
+    return {max: `${max}M`, min: `${min}M`}
   }
 
   async extractPackage (options = this.options) {
